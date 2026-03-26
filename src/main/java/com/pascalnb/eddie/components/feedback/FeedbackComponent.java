@@ -17,7 +17,11 @@ import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.utils.messages.MessageEditData;
+import net.dv8tion.jda.internal.requests.CompletedRestAction;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
@@ -34,7 +38,7 @@ public class FeedbackComponent extends EddieComponent implements RunnableCompone
 
     private final FeedbackSubmitModal submitModal = new FeedbackSubmitModal(this);
     private final FeedbackSubmitButton submitButton = new FeedbackSubmitButton(this);
-    private final FeedbackSubmitMessage submitMenu = new FeedbackSubmitMessage(this);
+    private final FeedbackSubmitMessage submitMessage = new FeedbackSubmitMessage(this);
     private final FeedbackNextButton nextButton = new FeedbackNextButton(this);
     private final FeedbackStopButton stopButton = new FeedbackStopButton(this);
     private final FeedbackStartMessage startMenu = new FeedbackStartMessage(this);
@@ -70,9 +74,10 @@ public class FeedbackComponent extends EddieComponent implements RunnableCompone
                         new StartCommand<>(this),
                         new StopCommand<>(this),
                         blacklist.getCommands(),
-                        new FeedbackMessageCommand(this),
+                        new FeedbackButtonCommand(this),
                         new FeedbackResetCommand(this),
-                        new FeedbackRemoveCommand(this)
+                        new FeedbackRemoveCommand(this),
+                        new FeedbackListCommand(this)
                     )
                 ),
             new EddieCommand<>(this, "manage-feedback", "Manage feedback",
@@ -94,10 +99,10 @@ public class FeedbackComponent extends EddieComponent implements RunnableCompone
     }
 
     public String getSubmission(Member member) throws CommandException {
-        return getSaveSession().getSubmission(member);
+        return getSessionSafe().getSubmission(member);
     }
 
-    private FeedbackSession getSaveSession() throws CommandException {
+    private FeedbackSession getSessionSafe() throws CommandException {
         FeedbackSession currentSession = session.get();
         if (currentSession == null) {
             throw new CommandException("No feedback session is currently running");
@@ -105,24 +110,36 @@ public class FeedbackComponent extends EddieComponent implements RunnableCompone
         return currentSession;
     }
 
-    public void handleSubmission(Member member, String url) throws CommandException {
-        getSaveSession().addSong(member, url);  // throws CommandException on error
+    public RestAction<Void> handleSubmission(Member member, String url) {
+        try {
+            return getSessionSafe().addSong(member, url);
+        } catch (CommandException e) {
+            return new CompletedRestAction<>(member.getJDA(), e);
+        }
     }
 
-    public void handleNextSubmission(Message message, InteractionHook hook) throws CommandException {
-        getSaveSession().handleNextSubmission(message, hook);
+    public RestAction<MessageEditData> handleNextSubmission(Message message) {
+        try {
+            return getSessionSafe().handleNextSubmission(message);
+        } catch (CommandException e) {
+            return new CompletedRestAction<>(message.getJDA(), e);
+        }
     }
 
     public void resetSession() throws CommandException {
-        getSaveSession().reset();
+        getSessionSafe().reset();
     }
 
     public void resetSessionMember(Member member) throws CommandException {
-        getSaveSession().resetMember(member);
+        getSessionSafe().resetMember(member);
     }
 
     public void removeSessionSubmission(Member member, boolean resetMember) throws CommandException {
-        getSaveSession().removeSubmission(member, resetMember);
+        getSessionSafe().removeSubmission(member, resetMember);
+    }
+
+    public List<Member> getQueuedMembers() throws CommandException {
+        return getSessionSafe().getQueuedMembers();
     }
 
     public FeedbackNextButton getNextButton() {
@@ -169,8 +186,8 @@ public class FeedbackComponent extends EddieComponent implements RunnableCompone
         return startMenu;
     }
 
-    public FeedbackSubmitMessage getSubmitMenu() {
-        return submitMenu;
+    public FeedbackSubmitMessage getSubmitMessage() {
+        return submitMessage;
     }
 
     @Override
@@ -186,6 +203,9 @@ public class FeedbackComponent extends EddieComponent implements RunnableCompone
 
     @Override
     public void stop() {
+        if (session.get() == null) {
+            return;
+        }
         session.getAndSet(null).reset();
     }
 

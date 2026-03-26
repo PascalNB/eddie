@@ -6,6 +6,7 @@ import com.pascalnb.eddie.components.event.EventComponent;
 import com.pascalnb.eddie.components.fanart.FanartComponent;
 import com.pascalnb.eddie.components.faq.FaqComponent;
 import com.pascalnb.eddie.components.feedback.FeedbackComponent;
+import com.pascalnb.eddie.components.grab.GrabComponent;
 import com.pascalnb.eddie.components.logger.LoggerComponent;
 import com.pascalnb.eddie.components.modmail.ModmailComponent;
 import com.pascalnb.eddie.components.ping.PingComponent;
@@ -14,6 +15,7 @@ import com.pascalnb.eddie.database.DatabaseManager;
 import com.pascalnb.eddie.listeners.GuildEventListener;
 import com.pascalnb.eddie.models.*;
 import io.github.cdimascio.dotenv.Dotenv;
+import io.github.cdimascio.dotenv.DotenvException;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
@@ -27,7 +29,9 @@ import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -36,7 +40,20 @@ public class Eddie {
 
     public static void main(String[] args) {
         try {
-            Dotenv config = Dotenv.configure().load();
+            File jarPath = new File(Eddie.class.getProtectionDomain().getCodeSource().getLocation().getPath());
+            Path directory = jarPath.getParentFile().toPath().toAbsolutePath();
+
+            Dotenv config;
+
+            try {
+                config = Dotenv.configure()
+                    .directory(directory.toString())
+                    .load();
+            } catch (DotenvException e) {
+                config = Dotenv.configure()
+                    .directory("./")
+                    .load();
+            }
 
             try {
                 if (DatabaseManager.createDatabase()) {
@@ -143,7 +160,8 @@ public class Eddie {
             "fanart", FanartComponent::new,
             "faq", FaqComponent::new,
             "event", EventComponent::new,
-            "role", RoleComponent::new
+            "role", RoleComponent::new,
+            "grab", GrabComponent::new
         );
     }
 

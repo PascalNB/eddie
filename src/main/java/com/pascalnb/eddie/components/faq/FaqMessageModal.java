@@ -40,7 +40,7 @@ public class FaqMessageModal extends EddieModal<FaqComponent> {
                 ),
                 Label.of(
                     "Channel",
-                    "The FAQ message will be sent to the selected channel(s).",
+                    "The FAQ message will be sent to the selected channel.",
                     EntitySelectMenu.create("channel", List.of(EntitySelectMenu.SelectTarget.CHANNEL))
                         .setChannelTypes(ChannelType.TEXT)
                         .setRequired(true)

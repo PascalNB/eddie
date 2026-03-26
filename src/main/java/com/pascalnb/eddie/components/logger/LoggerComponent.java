@@ -35,7 +35,7 @@ public class LoggerComponent extends EddieComponent implements EddieLogger {
 
     @Override
     public void log(@Nullable String componentId, @NotNull Level level, @Nullable User user, @NotNull String message) {
-        channel.apply(textChannel -> {
+        channel.accept(textChannel -> {
             if (!textChannel.canTalk()) {
                 return;
             }

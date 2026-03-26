@@ -20,15 +20,15 @@ public class FeedbackNextButton extends EddieButton<FeedbackComponent> {
 
     @Override
     public void accept(ButtonInteractionEvent event) {
-        event.deferEdit().queue(hook -> {
-            try {
-                getComponent().handleNextSubmission(event.getMessage(), hook);
-            } catch (CommandException e) {
-                hook.setEphemeral(true).sendMessageEmbeds(
-                    EmbedUtil.error(e).build()
-                ).queue();
-            }
-        });
+        event.deferEdit().queue(hook ->
+            getComponent().handleNextSubmission(event.getMessage())
+                .queue(
+                    editData -> hook.editOriginal(editData).queue(),
+                    e -> hook.setEphemeral(true).sendMessageEmbeds(
+                        EmbedUtil.error(new CommandException(e)).build()
+                    ).queue()
+                )
+        );
     }
 
 }

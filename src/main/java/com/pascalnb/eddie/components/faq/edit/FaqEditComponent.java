@@ -117,7 +117,7 @@ public class FaqEditComponent extends DynamicComponent<FaqEditComponent> impleme
             );
 
             if (this.selectedQuestion != null) {
-                FaqAnswerMessage answerMessage = this.component.getAnswerMessage(this.selectedQuestion);
+                FaqAnswerMessage answerMessage = this.component.getAnswerMessage(this.selectedQuestion, true);
                 MessageComponentTree tree = answerMessage.getEntity().getComponentTree();
                 Container answerContainer = tree.getComponents().getFirst().asContainer();
                 components.addAll(answerContainer.getComponents());

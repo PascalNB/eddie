@@ -14,10 +14,12 @@ import java.util.List;
 public class FaqAnswerMessage extends EddieMessage<FaqComponent> {
 
     private final FaqComponent.Question question;
+    private final boolean showIndex;
 
-    public FaqAnswerMessage(FaqComponent component, FaqComponent.Question question) {
+    public FaqAnswerMessage(FaqComponent component, FaqComponent.Question question, boolean showIndex) {
         super(component);
         this.question = question;
+        this.showIndex = showIndex;
     }
 
     @Override
@@ -26,11 +28,11 @@ public class FaqAnswerMessage extends EddieMessage<FaqComponent> {
             ? TextDisplay.ofFormat("## %s", question.getQuestion())
             : TextDisplay.ofFormat("""
                     ## %s%s
-                    *%s*
-                    **Index:** %s
+                    *%s*%s
                     """,
                 question.getEmoji() == null ? "" : (question.getEmoji() + " "),
-                question.getQuestion(), question.getDescription(), question.getIndex());
+                question.getQuestion(), question.getDescription(),
+                this.showIndex ? "\n**Index:** " + question.getIndex() : "");
 
         List<ContainerChildComponent> components = new ArrayList<>(List.of(
             title,

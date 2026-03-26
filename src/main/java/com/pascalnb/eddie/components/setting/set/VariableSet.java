@@ -30,6 +30,10 @@ public class VariableSet<T> {
         return values.isEmpty();
     }
 
+    public int size() {
+        return values.size();
+    }
+
     public String getPrettyValues() {
         if (values.isEmpty()) {
             return "Not set";

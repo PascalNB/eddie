@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.modals.Modal;
 
+import java.util.List;
 import java.util.Objects;
 
 public class FeedbackSubmitModal extends EddieModal<FeedbackComponent> {
@@ -34,11 +35,19 @@ public class FeedbackSubmitModal extends EddieModal<FeedbackComponent> {
                         .setRequired(true)
                         .setValue(this.url)
                         .build()
-                ),
-                TextDisplay.ofFormat(
-                    "The following websites are allowed: %s.",
-                    getComponent().getWebsites().getPrettyValues()
                 )
+            )
+            .addComponents(
+                getComponent().getWebsites().isEmpty()
+                    ? List.of()
+                    : List.of(
+                        TextDisplay.ofFormat(
+                            getComponent().getWebsites().size() == 1
+                                ? "The following website is allowed: %s."
+                                : "The following websites are allowed: %s.",
+                            getComponent().getWebsites().getPrettyValues()
+                        )
+                    )
             )
             .build();
     }
@@ -47,17 +56,17 @@ public class FeedbackSubmitModal extends EddieModal<FeedbackComponent> {
     public void accept(ModalInteractionEvent event) {
         String url = Objects.requireNonNull(event.getValue("url")).getAsString();
         event.deferReply(true).queue(hook -> {
-            try {
-                getComponent().handleSubmission(event.getMember(), url);
-                getComponent().getLogger().info(event.getUser(), "Submitted song <%s>.", url);
-                hook.sendMessageEmbeds(
-                    EmbedUtil.ok("Song submitted successfully!").build()
-                ).queue();
-            } catch (CommandException e) {
-                hook.sendMessageEmbeds(
-                    EmbedUtil.error(e).build()
-                ).queue();
-            }
+            getComponent().handleSubmission(event.getMember(), url).queue(
+                success -> {
+                    getComponent().getLogger().info(event.getUser(), "Submitted song <%s>.", url);
+                    hook.sendMessageEmbeds(
+                        EmbedUtil.ok("Song submitted successfully!").build()
+                    ).queue();
+                },
+                e -> hook.sendMessageEmbeds(
+                    EmbedUtil.error(new CommandException(e)).build()
+                ).queue()
+            );
         });
     }
 

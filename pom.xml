@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.pascalnb</groupId>
-    <artifactId>eddiejunior2</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>eddiejunior</artifactId>
+    <version>1.0.0</version>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -68,7 +68,7 @@
         <dependency>
             <groupId>net.dv8tion</groupId>
             <artifactId>JDA</artifactId>
-            <version>6.2.0</version>
+            <version>6.2.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>club.minnced</groupId>
@@ -81,14 +81,14 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
-            <version>2.0.3</version>
+            <version>2.0.17</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>2.0.3</version>
+            <version>2.0.17</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.google.code.findbugs/jsr305 -->

@@ -1,55 +1,41 @@
 package com.pascalnb.eddie.exceptions;
 
-public class CommandException extends Exception {
+import net.dv8tion.jda.api.exceptions.ContextException;
 
-    private final boolean custom;
+public class CommandException extends Exception {
 
     public CommandException(String message) {
         super(message);
-        this.custom = true;
     }
 
     public CommandException(String message, Throwable cause) {
         super(message, cause);
-        this.custom = true;
     }
 
     public CommandException(Throwable cause) {
         super(cause);
-        this.custom = cause instanceof CommandException commandException && commandException.isCustom();
-    }
-
-    public boolean isCustom() {
-        return custom;
     }
 
     public String getPrettyError() {
-        String message;
         Throwable cause = this.getCause();
 
-        if (!this.isCustom()) {
-            return this.getMessage();
-        }
-
         if (cause != null) {
-            String causeMessage;
-
-            if (cause instanceof NullPointerException) {
-                this.printStackTrace();
-                causeMessage = cause.getMessage();
-            } else if (cause instanceof CommandException commandException) {
-                return commandException.getPrettyError();
-            } else {
-                causeMessage = cause.getMessage();
+            switch (cause) {
+                case CommandException commandException -> {
+                    return commandException.getPrettyError();
+                }
+                case ContextException ignored -> {
+                    return this.getMessage();
+                }
+                case NullPointerException ignored -> this.printStackTrace();
+                default -> {
+                }
             }
 
-            message = this.getMessage() + ": " + causeMessage;
-
-        } else { // no underlying cause
-            message = this.getMessage();
+            return this.getMessage() + ": " + cause.getMessage();
         }
 
-        return message;
+        return this.getMessage();
     }
 
 }

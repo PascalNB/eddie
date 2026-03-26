@@ -82,7 +82,7 @@ public class FaqSelector extends EddieStringSelector<FaqComponent> {
                 return;
             }
 
-            FaqAnswerMessage answerMessage = getComponent().getAnswerMessage(question);
+            FaqAnswerMessage answerMessage = getComponent().getAnswerMessage(question, false);
             hook.sendMessage(answerMessage.getEntity()).queue();
         });
     }

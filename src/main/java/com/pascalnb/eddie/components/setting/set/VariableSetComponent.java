@@ -78,6 +78,10 @@ public class VariableSetComponent<T> extends EddieComponent {
         return set.getValues();
     }
 
+    public int size() {
+        return set.size();
+    }
+
     public void addValue(T value) throws CommandException {
         checkPreconditions(value);
         this.set.addValue(value);

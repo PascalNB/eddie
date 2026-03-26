@@ -71,7 +71,7 @@ public class VariableComponent<T> extends EddieComponent {
     public void checkPreconditions(T t) throws CommandException {
     }
 
-    public void apply(Consumer<@NotNull T> consumer) {
+    public void accept(Consumer<@NotNull T> consumer) {
         variable.apply(consumer);
     }
 

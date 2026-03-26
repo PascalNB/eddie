@@ -61,7 +61,7 @@ public class LinkEditModal extends UpdatingModal<LinkEditComponent> {
                             componentOptions
                         )
                         .setRequired(false)
-                        .setMinValues(0)
+                        .setRequiredRange(0, EntitySelectMenu.OPTIONS_MAX_AMOUNT)
                         .setDefaultValues(
                             link.components().stream()
                                 // check if still exists
@@ -75,7 +75,7 @@ public class LinkEditModal extends UpdatingModal<LinkEditComponent> {
                     "Selected channels will be opened and closed automatically.",
                     EntitySelectMenu.create("channels", EntitySelectMenu.SelectTarget.CHANNEL)
                         .setRequired(false)
-                        .setMinValues(0)
+                        .setRequiredRange(0, EntitySelectMenu.OPTIONS_MAX_AMOUNT)
                         .setChannelTypes(ChannelType.TEXT)
                         .setDefaultValues(
                             link.sessions().stream()

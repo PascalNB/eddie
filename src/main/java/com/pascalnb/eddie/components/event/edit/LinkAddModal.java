@@ -55,7 +55,7 @@ public class LinkAddModal extends UpdatingModal<LinkEditComponent> {
                                 .toList()
                         )
                         .setRequired(false)
-                        .setMinValues(0)
+                        .setRequiredRange(0, EntitySelectMenu.OPTIONS_MAX_AMOUNT)
                         .build()
                 ),
                 Label.of(
@@ -63,7 +63,7 @@ public class LinkAddModal extends UpdatingModal<LinkEditComponent> {
                     "Selected channels will be opened and closed automatically.",
                     EntitySelectMenu.create("channels", EntitySelectMenu.SelectTarget.CHANNEL)
                         .setRequired(false)
-                        .setMinValues(0)
+                        .setRequiredRange(0, EntitySelectMenu.OPTIONS_MAX_AMOUNT)
                         .setChannelTypes(ChannelType.TEXT)
                         .build()
                 )

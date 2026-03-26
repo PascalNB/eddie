@@ -45,7 +45,7 @@ public class ModmailMessageModal extends EddieModal<ModmailComponent> {
                     EntitySelectMenu.create("channel", List.of(EntitySelectMenu.SelectTarget.CHANNEL))
                         .setChannelTypes(ChannelType.TEXT)
                         .setRequired(true)
-                        .setMinValues(1)
+                        .setRequiredRange(1, EntitySelectMenu.OPTIONS_MAX_AMOUNT)
                         .build()
                 )
             )

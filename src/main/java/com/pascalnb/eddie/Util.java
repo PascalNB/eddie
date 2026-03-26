@@ -28,14 +28,19 @@ public final class Util {
 
     private static Object normalizeObject(Object value) {
         if (value instanceof Map<?, ?> map) {
-            return map.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey(Comparator.comparing(Object::toString)))
-                .collect(Collectors.toMap(
-                    Map.Entry::getKey,
-                    e -> normalizeJson(e.getValue()),
-                    (a, b) -> a,
-                    LinkedHashMap::new
-                ));
+            try {
+                return map.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey(Comparator.comparing(Object::toString)))
+                    .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> normalizeJson(e.getValue()),
+                        (a, b) -> a,
+                        LinkedHashMap::new
+                    ));
+            } catch (NullPointerException e) {
+                e.printStackTrace();
+                return null;
+            }
         }
 
         if (value instanceof Collection<?> list) {

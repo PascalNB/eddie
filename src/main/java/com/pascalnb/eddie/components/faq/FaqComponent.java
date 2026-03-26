@@ -116,8 +116,8 @@ public class FaqComponent extends EddieComponent implements StatusComponent {
         return selector;
     }
 
-    public FaqAnswerMessage getAnswerMessage(Question question) {
-        return new FaqAnswerMessage(this, question);
+    public FaqAnswerMessage getAnswerMessage(Question question, boolean showIndex) {
+        return new FaqAnswerMessage(this, question, showIndex);
     }
 
     public FaqEditComponent createEditMenu() {

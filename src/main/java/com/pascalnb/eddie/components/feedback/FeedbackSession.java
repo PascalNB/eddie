@@ -4,8 +4,10 @@ import com.pascalnb.eddie.ColorUtil;
 import com.pascalnb.eddie.URLUtil;
 import com.pascalnb.eddie.components.StatusComponent;
 import com.pascalnb.eddie.components.setting.VariableComponent;
+import com.pascalnb.eddie.components.setting.set.VariableSetComponent;
 import com.pascalnb.eddie.exceptions.CommandException;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.components.Component;
 import net.dv8tion.jda.api.components.MessageTopLevelComponentUnion;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
@@ -15,11 +17,13 @@ import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;
-import net.dv8tion.jda.api.interactions.InteractionHook;
+import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.api.utils.messages.MessageEditBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageEditData;
+import net.dv8tion.jda.internal.requests.CompletedRestAction;
+import net.dv8tion.jda.internal.requests.DeferredRestAction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -43,13 +47,13 @@ public class FeedbackSession implements StatusComponent {
      * Starts the feedback session by sending the initial messages to the appropriate channels.
      */
     public synchronized void start() {
-        component.getChatChannel().apply(channel ->
+        component.getChatChannel().accept(channel ->
             channel.sendMessage(
-                component.getSubmitMenu().getEntity()
+                component.getSubmitMessage().getEntity()
             ).queue()
         );
 
-        component.getSubmissionChannel().apply(channel ->
+        component.getSubmissionChannel().accept(channel ->
             channel.sendMessage(
                 component.getStartMenu().getEntity()
             ).queue()
@@ -68,7 +72,7 @@ public class FeedbackSession implements StatusComponent {
         this.members.clear();
         this.submissions.clear();
         this.submissionCount = 0;
-        component.getWinRole().apply(role ->
+        component.getWinRole().accept(role ->
             transferWinRole(role, this.currentWinner, null)
         );
         this.currentWinner = null;
@@ -137,72 +141,75 @@ public class FeedbackSession implements StatusComponent {
         }
     }
 
-    /**
-     * Adds a new song submission to the list of submissions for the feedback session.
-     * This method validates the submission, creates a message for the submission,
-     * and updates the internal state of the session to reflect the new submission.
-     *
-     * @param member The guild member submitting the song. Validation ensures the member is eligible to submit.
-     * @param url    The URL of the song being submitted. The URL is validated for safety and allowed domains.
-     * @throws CommandException If the submission fails validation or other constraints are violated.
-     */
-    public synchronized void addSong(Member member, String url) throws CommandException {
-        validateSubmission(member, url);
-        MessageCreateData message = createSubmissionMessage(member, url);
-        members.add(member);
-        boolean replaced = submissions.removeIf(submission -> submission.member().equals(member));
-        submissions.add(new Submission(member, url, message));
-        this.component.getLogger().info(member.getUser(), "Submitted song: <%s>", url);
-        if (!replaced) {
-            submissionCount++;
-        }
+
+    public RestAction<Void> addSong(Member member, String url) {
+        return validateSubmission(member, url)
+            .onSuccess(success -> {
+                synchronized (this) {
+                    MessageCreateData message = createSubmissionMessage(member, url);
+                    members.add(member);
+                    boolean replaced = submissions.removeIf(submission -> submission.member().equals(member));
+                    submissions.add(new Submission(member, url, message));
+                    this.component.getLogger().info(member.getUser(), "Submitted song: <%s>", url);
+                    if (!replaced) {
+                        submissionCount++;
+                    }
+                }
+            });
     }
 
     /**
-     * Validates a song submission by ensuring all specified constraints are met.
-     * Throws {@link CommandException} if the submission is invalid.
+     * Validates the submission of a URL by a member and ensures all defined criteria are met.
      *
-     * @param member The guild member attempting to submit a song.
-     * @param url    The URL of the song being submitted.
-     * @throws CommandException if the member has already submitted a song,
-     *                          the URL is invalid, the URL is unsafe (non-HTTPS),
-     *                          the domain is not allowed, the member is blacklisted,
-     *                          or the member is not in the required voice channel.
+     * @param member The member who is submitting the URL.
+     * @param url The URL being submitted for validation.
+     * @return A {@code RestAction<GuildVoiceState>} representing the result of the submission validation.
+     *         It either resolves successfully with the member's voice state or fails with an appropriate error.
      */
-    private void validateSubmission(Member member, String url) throws CommandException {
+    private RestAction<Void> validateSubmission(Member member, String url) {
         Matcher matcher = URLUtil.matchUrl(url);
         if (matcher == null) {
-            throw new CommandException("Invalid URL");
+            return new CompletedRestAction<>(member.getJDA(), new CommandException("Invalid URL"));
         }
+
         if (!URLUtil.isSafe(url)) {
-            throw new CommandException("Please provide a URL with HTTPS (https://)");
+            return new CompletedRestAction<>(member.getJDA(),
+                new CommandException("Please provide a URL with HTTPS (https://)"));
         }
+
         String hostname = matcher.group("domain") + "." + matcher.group("tld");
-        if (!this.component.getWebsites().contains(hostname)) {
-            throw new CommandException("The server does not accept links from that website (`%s`)".formatted(hostname));
+        VariableSetComponent<String> websites = this.component.getWebsites();
+        if (!websites.isEmpty() && !websites.contains(hostname)) {
+            return new CompletedRestAction<>(member.getJDA(),
+                new CommandException("The server does not accept links from that website (`%s`)".formatted(hostname)));
         }
+
         if (this.component.getBlacklist().contains(member.getUser())) {
-            throw new CommandException("You are blacklisted from submitting songs");
+            return new CompletedRestAction<>(member.getJDA(),
+                new CommandException("You are blacklisted from submitting songs"));
         }
+
+        if (members.contains(member) &&
+            submissions.stream().noneMatch(submission -> submission.member().equals(member))) {
+            return new CompletedRestAction<>(member.getJDA(),
+                new CommandException("You have already submitted a song"));
+        }
+
         VariableComponent<AudioChannel> voiceChannel = this.component.getVoiceChannel();
         if (voiceChannel.hasValue()) {
             String errorMessage = "You must be in the channel %s to submit songs".formatted(
                 voiceChannel.getPrettyValue());
-            GuildVoiceState voiceState = this.component.getGuild().retrieveMemberVoiceState(member)
-                .onErrorMap(e -> null)
-                .complete();
-            if (voiceState == null) {
-                throw new CommandException(errorMessage);
-            }
-            AudioChannel connectedChannel = voiceState.getChannel();
-            if (!voiceChannel.getValue().equals(connectedChannel)) {
-                throw new CommandException(errorMessage);
-            }
+            return this.component.getGuild().retrieveMemberVoiceState(member)
+                .onErrorFlatMap(e -> new CompletedRestAction<>(member.getJDA(), new CommandException(errorMessage)))
+                .flatMap(voiceState -> {
+                    AudioChannel connectedChannel = voiceState.getChannel();
+                    if (connectedChannel == null || !voiceChannel.getValue().getId().equals(connectedChannel.getId())) {
+                        return new CompletedRestAction<>(member.getJDA(), new CommandException(errorMessage));
+                    }
+                    return new CompletedRestAction<>(member.getJDA(), (Void) null);
+                });
         }
-        if (members.contains(member) &&
-            submissions.stream().noneMatch(submission -> submission.member().equals(member))) {
-            throw new CommandException("You have already submitted a song");
-        }
+        return new CompletedRestAction<>(member.getJDA(), (Void) null);
     }
 
     /**
@@ -245,99 +252,85 @@ public class FeedbackSession implements StatusComponent {
             .orElse(null);
     }
 
-    /**
-     * Handles the next song submission in the feedback session. This method updates the current winner,
-     * assigns roles, sends messages to appropriate channels, and edits the interaction message.
-     *
-     * @param message The {@code Message} object representing the current submission message to be edited.
-     * @param hook    The {@code InteractionHook} used for updating the original interaction message.
-     * @throws CommandException If retrieving the next submission fails or if any validation errors occur.
-     */
-    public synchronized void handleNextSubmission(Message message, InteractionHook hook) throws CommandException {
-        SubmissionVoiceState submissionVoiceState = getNextSubmission();  // throws CommandException on error
-        Submission submission = submissionVoiceState.submission();
-        GuildVoiceState voiceState = submissionVoiceState.voiceState();
+    public RestAction<MessageEditData> handleNextSubmission(Message message) {
+        return getNextSubmission()
+            .map(submissionVoiceState -> {
+                Submission submission = submissionVoiceState.submission();
+                GuildVoiceState voiceState = submissionVoiceState.voiceState();
 
-        component.getWinRole().apply(role ->
-            transferWinRole(role, this.currentWinner, submission.member())
-        );
-        this.currentWinner = submission.member();
+                component.getWinRole().accept(role ->
+                    transferWinRole(role, this.currentWinner, submission.member())
+                );
+                this.currentWinner = submission.member();
 
-        if (voiceState != null) {
-            component.getVoiceChannel().apply(channel ->
-                inviteToStage(voiceState, channel)
-            );
-        }
+                if (voiceState != null) {
+                    component.getVoiceChannel().accept(channel ->
+                        inviteToStage(voiceState, channel)
+                    );
+                }
 
-        component.getChatChannel().apply(channel -> {
-            if (channel.canTalk()) {
-                sendWinMessage(channel, submission.member());
-            }
-        });
+                component.getChatChannel().accept(channel -> {
+                    if (channel.canTalk()) {
+                        sendWinMessage(channel, submission.member());
+                    }
+                });
 
-        component.getSubmissionChannel().apply(channel -> {
-            if (channel.canTalk()) {
-                channel.sendMessage(submission.message()).queue();
-            }
-        });
+                component.getSubmissionChannel().accept(channel -> {
+                    if (channel.canTalk()) {
+                        channel.sendMessage(submission.message()).queue();
+                    }
+                });
 
-        MessageEditData updatedSubmissionMessage = editSubmissionMessage(message);
-        hook.editOriginal(updatedSubmissionMessage).queue();
+                return editSubmissionMessage(message);
+            });
     }
 
-    /**
-     * Retrieves the next eligible song submission along with the associated voice state of the user
-     * who made the submission. The method randomly selects from the available submissions while ensuring
-     * the submitter is connected to the correct voice channel. If no submissions are available or if
-     * none of the submitters are connected to the required voice channel, a {@link CommandException}
-     * is thrown.
-     *
-     * @return A {@code SubmissionVoiceState} object containing the next song submission and the related
-     * voice state of the submitting member.
-     * @throws CommandException if there are no submissions, the queue is empty, or none of the
-     *                          participants are connected to the required voice channel.
-     */
+
     @NotNull
-    private SubmissionVoiceState getNextSubmission() throws CommandException {
+    private RestAction<SubmissionVoiceState> getNextSubmission() {
+        JDA jda = component.getGuild().getJDA();
         if (submissionCount == 0) {
-            throw new CommandException("No songs have been submitted yet");
+            return new CompletedRestAction<>(jda, new CommandException("No songs have been submitted yet"));
         }
         if (submissions.isEmpty()) {
-            throw new CommandException("There are no submissions left in the queue");
+            return new CompletedRestAction<>(jda, new CommandException("There are no submissions left in the queue"));
         }
 
-        VariableComponent<AudioChannel> voiceChannel = component.getVoiceChannel();
-        GuildVoiceState voiceState = null;
-        Submission submission = null;
+        Collections.shuffle(submissions);
 
-        while (!submissions.isEmpty()) {
-            Collections.shuffle(submissions);
-            submission = submissions.removeFirst();
+        return getSubmissionAction(jda);
+    }
+
+    private RestAction<SubmissionVoiceState> getSubmissionAction(JDA jda) {
+        return new DeferredRestAction<>(jda, () -> {
+            if (this.submissions.isEmpty()) {
+                return new CompletedRestAction<>(jda, new CommandException("None of the participants are connected to the voice channel"));
+            }
+
+            VariableComponent<AudioChannel> voiceChannel = component.getVoiceChannel();
+
+            Submission submission = this.submissions.removeFirst();
             if (!voiceChannel.hasValue()) {
-                break;
+                return new CompletedRestAction<>(jda, new SubmissionVoiceState(submission, null));
             }
 
-            voiceState = component.getGuild().retrieveMemberVoiceState(submission.member())
+            return component.getGuild().retrieveMemberVoiceState(submission.member())
                 .onErrorMap(e -> null)
-                .complete();
-            if (voiceState == null) {
-                this.component.getLogger().info("Skipped submission by %s", submission.member().getAsMention());
-                continue;
-            }
-            AudioChannel connectedChannel = voiceState.getChannel();
-            if (!voiceChannel.getValue().equals(connectedChannel)) {
-                this.component.getLogger().info("Skipped submission by %s", submission.member().getAsMention());
-                continue;
-            }
+                .flatMap(voiceState -> {
+                    if (voiceState == null) {
+                        this.component.getLogger().info("Skipped submission by %s", submission.member().getAsMention());
+                        return getSubmissionAction(jda); // recursion
+                    }
 
-            submission = null;
-        }
+                    AudioChannel connectedChannel = voiceState.getChannel();
+                    if (connectedChannel == null || !voiceChannel.getValue().getId().equals(connectedChannel.getId())) {
+                        this.component.getLogger().info("Skipped submission by %s", submission.member().getAsMention());
+                        return getSubmissionAction(jda); // recursion
+                    }
 
-        if (submission == null) {
-            throw new CommandException("None of the participants are connected to the voice channel");
-        }
-
-        return new SubmissionVoiceState(submission, voiceState);
+                    return new CompletedRestAction<>(jda, new SubmissionVoiceState(submission, voiceState));
+                });
+        });
     }
 
     /**
@@ -412,6 +405,10 @@ public class FeedbackSession implements StatusComponent {
     public void supplyStatus(StatusCollector collector) {
         collector.addString("Submissions", String.valueOf(submissions.size()))
             .addString("Queue size", String.valueOf(submissions.size()));
+    }
+
+    public synchronized List<Member> getQueuedMembers() {
+        return submissions.stream().map(Submission::member).toList();
     }
 
     private record Submission(Member member, String url, MessageCreateData message) {}

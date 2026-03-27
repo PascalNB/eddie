@@ -85,10 +85,7 @@ public class DatabaseManager {
         return DatabaseAction.allOf(
             values.stream()
                 .map(value ->
-                    DatabaseAction.allOf(
-                        DatabaseAction.of(REMOVE_SETTING.withArgs(guildId, componentId, setting)),
-                        DatabaseAction.of(ADD_SETTING.withArgs(guildId, componentId, setting, value))
-                    )
+                    DatabaseAction.of(ADD_SETTING.withArgs(guildId, componentId, setting, value))
                 )
                 .toList()
         ).execute();

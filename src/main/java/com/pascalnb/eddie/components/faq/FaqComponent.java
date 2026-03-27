@@ -4,6 +4,7 @@ import com.pascalnb.eddie.URLUtil;
 import com.pascalnb.eddie.Util;
 import com.pascalnb.eddie.components.StatusCommand;
 import com.pascalnb.eddie.components.StatusComponent;
+import com.pascalnb.eddie.components.faq.answer.FaqAnswerComponent;
 import com.pascalnb.eddie.models.EddieCommand;
 import com.pascalnb.eddie.models.dynamic.DynamicSubcomponent;
 import com.pascalnb.eddie.components.faq.edit.FaqEditComponent;
@@ -63,7 +64,8 @@ public class FaqComponent extends EddieComponent implements StatusComponent {
         register(
             new EddieCommand<>(this, "faq", "FAQ", Permission.BAN_MEMBERS)
                 .addSubCommands(
-                    new StatusCommand<>(this)
+                    new StatusCommand<>(this),
+                    new FaqAnswerCommand(this)
                 ),
             new EddieCommand<>(this, "manage-faq", "FAQ",
                 Permission.BAN_MEMBERS, Permission.MANAGE_SERVER)
@@ -135,6 +137,10 @@ public class FaqComponent extends EddieComponent implements StatusComponent {
     @Override
     public void supplyStatus(StatusCollector collector) {
         collector.addString("Message", message.getPrettyValue());
+    }
+
+    public FaqAnswerComponent createAnswerMenu() {
+        return createComponent(FaqAnswerComponent.factory(this, dynamicSubcomponent.createInstance(), getQuestions()));
     }
 
     public static final class Question {

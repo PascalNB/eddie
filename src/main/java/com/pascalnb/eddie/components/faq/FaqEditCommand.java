@@ -20,7 +20,6 @@ public class FaqEditCommand extends EddieCommand<FaqComponent> {
             FaqEditComponent editMenu = getComponent().createEditMenu();
             hook.sendMessage(editMenu.getMessage()).queue();
         });
-
     }
 
 }

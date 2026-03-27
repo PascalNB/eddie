@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.interactions.ICustomIdInteraction;
 
@@ -15,6 +16,7 @@ public class JDAEventHandler extends EventHandler {
         addCustomIdListener(ButtonInteractionEvent.class);
         addCustomIdListener(StringSelectInteractionEvent.class);
         addCustomIdListener(ModalInteractionEvent.class);
+        addCustomIdListener(EntitySelectInteractionEvent.class);
         registerEvent(SlashCommandInteractionEvent.class, SlashCommandInteractionEvent::getName);
         registerEvent(MessageContextInteractionEvent.class, MessageContextInteractionEvent::getName);
         registerGenericEvent(GenericEvent.class);

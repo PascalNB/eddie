@@ -115,7 +115,6 @@ public class Eddie {
 
     private static JDA buildJDA(String token, net.dv8tion.jda.api.hooks.EventListener... listeners) {
         return JDABuilder.createLight(token,
-                GatewayIntent.GUILD_MEMBERS,
                 GatewayIntent.SCHEDULED_EVENTS
             )
             .setMemberCachePolicy(MemberCachePolicy.NONE)
